@@ -1,0 +1,310 @@
+---
+title: "DSC week 14 IP - Association Rules and Anomaly Detection"
+author: "Wambui"
+date: "29/01/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+##  CarreFour Kenya Sales
+
+### 1. Research Question
+Carrefour Kenya and are currently undertaking a project that will inform the marketing department on the most relevant marketing strategies that will result in the highest number of sales (total price including tax).
+
+
+### 2. Metric of Success
+
+identifying the Association Rules and Anomaly Detection.
+
+### 3. Understanding the Context.
+
+Sales transactional data has been acquired from the Carrefour Kenya stores in Kenya 
+
+### 4. Recording the Experimental Design
+
+a. Data Loading
+b. Data Cleaning and processing
+c. Exploratory Data Analysis
+d. Association Rules and Anomaly Detection
+e. Recommendations and Conclusions
+
+### 5. Data Relevance.
+
+The provided data is relevant for this kind of study 
+
+### Data Preview
+
+
+```{r}
+install.packages("arules")
+install.packages("data.table")
+```
+
+
+```{r}
+#
+#loading the library
+library(data.table) # load package
+library(tidyverse)
+library("caret")
+library(arules)
+```
+
+
+```{r}
+
+# Dataset Url = http://bit.ly/SupermarketDatasetII
+# Importing our dataset
+# 
+#
+sales <- read.csv('http://bit.ly/SupermarketDatasetII')
+head(sales)
+```
+
+
+
+# Check the Data
+```{r}
+head(sales,6)
+
+```
+
+```{r}
+tail(sales,6)
+```
+
+
+Converting entries to transactions.
+```{r}
+library(arules)
+path <-"http://bit.ly/SupermarketDatasetII"
+Transactions<-read.transactions(path, sep = ",")
+Transactions
+```
+
+Verifying the object's class
+```{r}
+class(Transactions)
+```
+
+
+```{r}
+
+# Previewing our first 5 transactions
+#
+inspect(Transactions[1:5])
+```
+### Previewing the dataset
+```{r}
+items<-as.data.frame(itemLabels(Transactions))
+colnames(items) <- "Item"
+head(items, 10) 
+```
+Observation: There are 10 items that make up our dataset
+
+### checking the dataset summary
+
+```{r}
+summary(Transactions)
+
+```
+Observation: There are 8 numerical columns and 8 categorical columns.
+
+
+### Checking the Frequency of some articles 
+# of transactions ranging from 1 to 5
+```{r}
+itemFrequency(Transactions[, 1:5],type = "absolute")
+round(itemFrequency(Transactions[, 1:5],type = "relative")*100,2)
+
+```
+
+# Displaying top 10 most common items in the transactions dataset 
+# and the items whose relative importance is at least 10%
+# 
+```{r}
+par(mfrow = c(1, 2))
+
+# plot the frequency of items
+itemFrequencyPlot(Transactions, topN = 10,col="darkgreen")
+itemFrequencyPlot(Transactions, support = 0.1,col="darkred")
+```
+
+### Building the Model
+
+#model1 : support =0.001 and confidence = 0.8
+```{r}
+sales.rules <- apriori (Transactions, parameter = list(supp = 0.001, conf = 0.8))
+sales.rules
+```
+
+We build Model1 using association rules and apriori() function, min support=0.001, confidence=0.8
+Observation: Model 1 has 74 rules.
+
+### increasing the support and lowering the confidence level
+```{r}
+# Building a apriori model with Min Support as 0.002 and confidence as 0.8.
+sales.rules2<- apriori (Transactions,parameter = list(supp = 0.002, conf = 0.8)) 
+```
+
+
+
+```{r}
+# Building a apriori model with Min Support as 0.002 and confidence as 0.6.
+sales.rules2<- apriori (Transactions,parameter = list(supp = 0.002, conf = 0.6)) 
+```
+
+
+Exploring our model
+```{r}
+summary(sales.rules)
+```
+
+
+
+##Observing rules built in our model
+```{r}
+inspect(sales.rules[1:5])
+```
+Observation:
+
+ If a customer buys frozen smoothie and spinach, they are 88% likely to buy mineral water also
+ 
+ If a customer  buys bacon and pancake, they are 81% likely to buy spaghetti also.
+ 
+ If a customer  buys mushroom cream sauce, and pasta, they are 95% likely to buy escalope also
+  
+
+
+```{r}
+library(arulesViz)
+plot(sales.rules,method = "graph",)
+```
+
+
+### Ordering these rules by criteria
+```{r}
+# Ordering these rules by a criteria such as the level of confidence
+# then looking at the first five rules.
+# We can also use different criteria such as: (by = "lift" or by = "support")
+# 
+sales.rules<-sort(sales.rules, by="confidence", decreasing=TRUE)
+inspect(sales.rules[1:5])
+```
+
+
+The above 4 rules have a confidence of 100.
+
+###. checking the top 5 items that will be bought before buying spagetti
+
+```{r}
+# What if we wanted to determine items that customers might buy 
+# who have previously bought yogurt?
+# ---
+# 
+# Subset the rules
+spags <- subset(sales.rules, subset = lhs %pin% "spaghetti")
+
+# Order by confidence
+spags<-sort(spags, by="confidence", decreasing=TRUE)
+
+```
+
+
+
+```{r}
+# inspect top 5
+inspect(spags[1:5])
+```
+
+
+
+### Part 4: Anomaly Detection
+
+# Dataset Url = http://bit.ly/SupermarketDatasetII
+# Importing our dataset
+# 
+#
+```{r}
+sales_anom <- read.csv('http://bit.ly/CarreFourSalesDataset')
+head(sales_anom)
+```
+# Check the Data
+```{r}
+head(sales_anom,6)
+
+```
+
+
+```{r}
+tail(sales_anom,6)
+```
+
+```{r}
+colnames(sales_anom)
+```
+Observation: The dataset contains 2 Columns namely Date and Sales
+```{r}
+dim(sales_anom)
+```
+Observation: The dataset contains 1000 rows and 2 Columns
+
+
+### Convert date to date time data
+```{r}
+#changing date to date time. 
+sales_anom$Date <- as.Date(sales_anom$Date, "%m/%d/%y")
+head(sales_anom)
+```
+
+```{r}
+# Install Lubridate package for date time data
+#install.packages('lubridate')
+library(lubridate)
+library(tidyverse)
+library(anomalize)
+```
+
+### Detecting Anomalies
+
+
+```{r}
+sales_tbl <- as_tibble(sales_anom)
+head(sales_tbl)
+```
+
+```{r}
+sales_anom_df <- sales_anom %>% group_by(Date) %>% tally()
+colnames(sales_anom_df) <- c('TransactionDate', 'Total')
+head(sales_anom_df)
+```
+
+
+
+```{r}
+# we now plot using plot_anomaly_decomposition() to visualize out data.
+sales_anom_df %>%
+    time_decompose(Total) %>%
+    anomalize(remainder) %>%
+    plot_anomaly_decomposition(ncol = 2, alpha_dots = .8) +
+    ggtitle("Anomaly Detection")
+```
+### plotting recomposition to check anomalies further
+```{r}
+
+sales_anom_df %>%
+    time_decompose(Total) %>%
+    anomalize(remainder) %>%
+    time_recompose() %>%
+    plot_anomalies(time_recomposed = TRUE, ncol = 4, alpha_dots = 0.25, fill="blue") +
+    ggtitle("Anomaly Detection")
+```
+\
+
+
+Observation: There are no anomaly seen.

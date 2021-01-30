@@ -1,0 +1,196 @@
+---
+title: "DSC week 14 IP - Dimenstionality Reduction and Feature Selection"
+author: "Wambui"
+date: "29/01/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+##  CarreFour Kenya Sales increment strategies 
+
+### 1. Research Question
+Carrefour Kenya and are currently undertaking a project that will inform the marketing department on the most relevant marketing strategies that will result in the highest number of sales (total price including tax).
+
+
+### 2. Metric of Success
+
+identifying the principal components that contribute to sales.
+
+### 3. Understanding the context.
+
+Sales transactional data has been acquired from the Carrefour Kenya stores in Kenya 
+
+### 4. Recording the Experimental Design
+
+a. Data Loading
+b. Data Cleaning and processing
+c. Exploratory Data Analysis
+d. PCA and Feature Selection
+e. Recommendations and Conclusions
+
+### 5. Data Relevance.
+
+The provided data is relevant for this kind of study 
+
+### Data Preview
+
+
+```{r}
+#install.packages("caret")
+#loading the library
+library(data.table) # load package
+library(tidyverse)
+library("caret")
+```
+
+
+```{r}
+
+# Dataset Url = http://bit.ly/CarreFourDataset
+
+# Importing our dataset
+#
+sales_data <- read.csv('http://bit.ly/CarreFourDataset')
+```
+
+
+# Check the Data
+```{r}
+head(sales_data,6)
+
+```
+
+
+```{r}
+tail(sales_data,6)
+```
+
+```{r}
+colnames(sales_data)
+```
+
+```{r}
+dim(sales_data)
+```
+Observation: the tables has 1000 records and 16 columns.
+
+```{r}
+str(sales_data)
+
+```
+Observation: There are 8 numerical columns and 8 categorical columns.
+
+
+### converting the data into a tibble for easy manupulation
+```{r}
+#For ease in analysis,we convert the data into a tibble
+df_sales<-as_tibble(sales_data) 
+df_sales
+```
+
+
+
+```{r}
+summary(df_sales)
+```
+Observation: Statistical Summary of dataset
+
+##Data Cleaning
+## Checking for Null Values
+```{r}
+total_null <- sum(is.na(df_sales))
+total_null
+``` 
+
+Observation: No null values noted
+
+## Duplicates 
+```{r}
+duplicated_rows <- df_sales[duplicated(df_sales),]
+nrow(duplicated_rows)
+```
+# Checking for outliers using Boxplots
+
+```{r}
+df_sales_numeric<- df_sales %>% select_if(is.numeric)
+df_sales_numeric
+```
+```{r}
+boxplot(df_sales_numeric)$out
+```
+
+Observation: There are outliers in the numerical variables of the datset i.e Tax,cogs,gross income, and Total. They were not dropped.
+
+
+### IMPLEMENTATION
+1.Dimensionality Reduction
+```{r}
+df_sales_numeric1 <- df_sales_numeric
+head(df_sales_numeric1)
+```
+
+###### passing numerical data 
+```{r}
+numeric <- df_sales[,c(6:8,12:16)]
+head(numeric)
+```
+
+###### passing numerical data to prcomp()
+```{r}
+sales.pca <- prcomp(df_sales[,c(6,7,8,12,14,15,16)], center =TRUE, scale. = TRUE)
+summary(sales.pca)
+```
+
+
+### we can plot the principal components for visualization using plot(), and type.
+
+```{r}
+plot(sales.pca,type = 'l')
+```
+Observation: 7 principal components, each which explain a percentage of the total variation of the Dataset.
+
+
+
+### Feature Selection
+
+```{r}
+sales_data1 <- sales_data
+head(sales_data1)
+```
+
+```{r}
+sales_data2 <- sales_data1[,c(6,7,8,12,14,15,16)] 
+head(sales_data2)
+```
+Libraries
+```{r}
+library(caret)
+library(corrplot)
+```
+
+
+#Calculating the correlation matrix
+```{r}
+correlationMatrix <- cor(sales_data2)
+# Find attributes that are highly correlated
+highlyCorrelated <- findCorrelation(correlationMatrix, cutoff=0.75)
+head(highlyCorrelated)
+head(sales_data2)
+```
+
+
+```{r}
+# Removing Redundant Features 
+sales_data3 <-sales_data2[,-c(3,4,7)]
+head(sales_data3)
+```
+```{r}
+correlationmatrix <- cor(sales_data3)
+# Performing our graphical comparison
+par(mfrow = c(1, 2))
+corrplot(correlationMatrix, order = "hclust")
+corrplot(correlationmatrix, order = "hclust")
+```
+Observation: The key variables are unit price, quantity, gross income and rating.
